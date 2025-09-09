@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jerl Wodford — Dynamic Time Background</title>
+  <style>
+    :root {
+      --color-morning: #fff7d6;   /* warm sunrise */
+      --color-afternoon: #e6f4ff; /* light sky */
+      --color-evening: #ffe6e0;   /* soft sunset */
+      --color-night: #0f172a;     /* deep blue-gray */
+
+      --fg-dark: #0b1220;  /* for light backgrounds */
+      --fg-light: #f8fafc; /* for dark backgrounds */
+
+      --radius: 16px;
+    }
+
+    html, body {
+      height: 100%;
+    }
+    body {
+      margin: 0;
+      font: 16px/1.55 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: var(--bg, var(--color-morning));
+      color: var(--fg, var(--fg-dark));
+      transition: background-color 500ms ease, color 300ms ease;
+      display: grid;
+      place-items: center;
+      min-height: 100svh;
+    }
+
+    /* Themed foreground/background via data-theme on <body> */
+    body[data-theme="morning"] { --bg: var(--color-morning); --fg: var(--fg-dark); }
+    body[data-theme="afternoon"] { --bg: var(--color-afternoon); --fg: var(--fg-dark); }
+    body[data-theme="evening"] { --bg: var(--color-evening); --fg: var(--fg-dark); }
+    body[data-theme="night"] { --bg: var(--color-night); --fg: var(--fg-light); }
+
+    .card {
+      background: color-mix(in oklab, var(--bg) 80%, white);
+      border: 1px solid color-mix(in oklab, var(--bg) 70%, black);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.10);
+      padding: 1.25rem clamp(1rem, 4vw, 2rem);
+      border-radius: var(--radius);
+      width: min(900px, 92vw);
+    }
+
+    h1 {
+      margin: 0 0 0.25rem 0;
+      font-size: clamp(1.6rem, 2.4vw + 1rem, 2.4rem);
+      letter-spacing: 0.2px;
+    }
+    p { margin: 0.25rem 0; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.75rem 1rem;
+    }
+
+    .row { display: flex; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; }
+    .label { opacity: 0.8; min-width: 8rem; font-weight: 600; }
+
+    .badge {
+      display: inline-block;
+      border: 1px solid currentColor;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+    }
+
+    footer { margin-top: 1rem; opacity: 0.8; font-size: 0.95rem; }
+    code { background: rgba(0,0,0,0.07); padding: 0.15rem 0.35rem; border-radius: 6px; }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card" role="main" aria-labelledby="page-title">
+    <header>
+      <h1 id="page-title">Welcome to my dynamic webpage!</h1>
+      <div class="badge" aria-live="polite" aria-atomic="true">
+        Local time: <span id="time-now">—:—</span> · <span id="period">—</span>
+      </div>
+    </header>
+
+    <section class="grid" aria-describedby="about">
+      <p id="about" class="sr-only" hidden>Basic information required by the assignment.</p>
+
+      <div class="row"><span class="label">Name</span><span>Jerl Wodford</span></div>
+      <div class="row"><span class="label">Course</span><span>COP 4813 — Web Applications Programming</span></div>
+      <div class="row"><span class="label">Major</span><span>Computer Science</span></div>
+    </section>
+
+    <footer>
+      <p><strong>How it works:</strong> The background color changes with your device's current time: Morning (6:00–11:59), Afternoon (12:00–17:59), Evening (18:00–20:59), Night (21:00–5:59). This runs entirely in your browser with JavaScript.</p>
+    </footer>
+  </main>
+
+  <noscript>
+    <p style="max-width:60ch;margin:1rem auto;text-align:center">This page needs JavaScript enabled to change the background color by time of day.</p>
+  </noscript>
+
+  <script>
+    (function () {
+      const $time = document.getElementById('time-now');
+      const $period = document.getElementById('period');
+
+      function getThemeForHour(h) {
+        if (h >= 6 && h < 12) return 'morning';
+        if (h >= 12 && h < 18) return 'afternoon';
+        if (h >= 18 && h < 21) return 'evening';
+        return 'night';
+      }
+
+      function titleCase(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+      function applyTheme(now = new Date()) {
+        const hour = now.getHours();
+        const theme = getThemeForHour(hour);
+        document.body.setAttribute('data-theme', theme);
+        $time.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        $period.textContent = titleCase(theme);
+      }
+
+      // Initial paint
+      applyTheme();
+
+      // Update exactly at the start of each minute for accurate clock + theme boundaries
+      function scheduleTick() {
+        const now = new Date();
+        const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+        setTimeout(() => {
+          applyTheme();
+          setInterval(applyTheme, 60 * 1000);
+        }, Math.max(0, msToNextMinute));
+      }
+      scheduleTick();
+
+      // Optional: quick test helper. Add ?test=18 to the URL to preview a specific hour.
+      const params = new URLSearchParams(location.search);
+      if (params.has('test')) {
+        const h = Math.max(0, Math.min(23, parseInt(params.get('test'), 10)));
+        document.body.setAttribute('data-theme', getThemeForHour(h));
+        $period.textContent = titleCase(getThemeForHour(h)) + ' (test)';
+      }
+    })();
+  </script>
+</body>
+</html>
